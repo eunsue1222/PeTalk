@@ -35,7 +35,7 @@ def downloading_s3(file_name):
     return 'download'
 
 def posting_data(video_pk, emotion):
-    url_items = "http://localhost:8080/api/video/emotion"
+    url_items = "http://52.78.55.111/api/video/emotion"
     newItem = {"id": video_pk, "emotion": emotion}
     print(newItem)
     response = requests.post(url_items, json=newItem)
