@@ -17,6 +17,7 @@ from functools import lru_cache
 from os import walk
 import moviepy.editor as mp
 from urllib import parse
+os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
 
 
 def parsing_json(json_format):
