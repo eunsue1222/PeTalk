@@ -104,6 +104,10 @@ def video_inference(video_name='test_video.mp4'):
 from flask import Flask, request
 app = Flask(__name__)
 
+@app.route('/')
+def hello_world():
+    return 'Hello World'
+
 @app.route('/api/video/upload', methods=['POST'])
 def get_video():
     result = request.get_json()
@@ -114,5 +118,4 @@ def get_video():
     return 'success'
 
 if __name__ == "__main__":
-    # app.debug = True # 에러 없으면 자동으로 서버 재시작
-    app.run()  # host='0.0.0.0' 외부접근가능
+    app.run(host='0.0.0.0')
