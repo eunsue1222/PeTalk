@@ -19,6 +19,8 @@ import moviepy.editor as mp
 from urllib import parse
 os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
 
+from flask import render_template
+
 
 def parsing_json(json_format):
     file_url = json_format["url"]
@@ -117,5 +119,18 @@ def get_video():
     posting_data(videoId, emotion)
     return 'success'
 
+if not app.debug:
+    import logging
+    from logging.handlers import RotatingFileHandler
+    file_handler = RotatingFileHandler(
+        'dave_server.log', maxBytes=2000, backupCount=10)
+    file_handler.setLevel(logging.WARNING)
+    app.logger.addHandler(file_handler)
+
+@app.errorhandler(404)
+def page_not_found(error):
+    app.logger.error('에러 page_not_found에서 일어났습니다.')
+    return render_template('404.html'), 404
+
 if __name__ == "__main__":
-    app.run(host='0.0.0.0')
+    app.run(host="0.0.0.0", port="8080", debug=False)
