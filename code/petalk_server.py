@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torchvision import transforms, models
 from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
@@ -19,8 +20,9 @@ from os import walk
 import moviepy.editor as mp
 from urllib import parse
 from flask import render_template
+from PIL import Image
 os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
-
+#audio = np.vstack(audio_clip.iter_frames())
 
 def parsing_json(json_format):
     file_url = json_format["url"]
@@ -95,7 +97,7 @@ def video_inference(video='test_video.mp4'):
         pred = model(X)
         print(pred)
         print(pred.argmax(1).item())
-        wav_file_path = os.path.join(file_name)
+        wav_file_path = os.path.join('test_audio.wav')
         print(wav_file_path)
     emo_dict = {0: 'chattering', 1: 'growling', 2: 'hissing', 3: 'meowing', 4: 'purring', 5: 'trilling', 6: 'yelling', 7: 'noise'}
     return emo_dict[pred.argmax(1).item()]
