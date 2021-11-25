@@ -125,19 +125,14 @@ def extracting_frame(video='test_video.mp4'):
     emo_dict = {0: 'chattering', 1: 'growling', 2: 'hissing', 3: 'meowing', 4: 'purring', 5: 'trilling', 6: 'yelling', 7: 'noise'}
     return emo_dict[pred_most.item()]
 
-def action_inference(image, model_path='model_cat_mobilenetV2_statedict.pt'):
-    if torch.cuda.is_available():
-        is_cuda = True
-    else:
-        is_cuda = False
-        
+def action_inference(image, model_path='model_cat_mobilenetV2_statedict.pt'):        
     model_ft = models.mobilenet_v2(pretrained=True)
     num_ftrs = model_ft.classifier[1].out_features
     model_ft.fc = nn.Linear(num_ftrs, 7)
     
-    if is_cuda:
+    if torch.cuda.is_available():
         model_ft = model_ft.cuda()
-    model_ft.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    model_ft.load_state_dict(torch.load(model_path))
 
     simple_transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
     inputs = simple_transform(image)  # torch.Size([3, 224, 224])
