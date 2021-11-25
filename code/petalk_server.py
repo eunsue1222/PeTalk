@@ -132,7 +132,7 @@ def action_inference(image, model_path='model_cat_mobilenetV2_statedict.pt'):
     
     if torch.cuda.is_available():
         model_ft = model_ft.cuda()
-    model_ft.load_state_dict(torch.load(model_path))
+    model_ft.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
 
     simple_transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
     inputs = simple_transform(image)  # torch.Size([3, 224, 224])
