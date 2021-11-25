@@ -123,14 +123,14 @@ def extracting_frame(video='test_video.mp4'):
     emo_dict = {0: 'chattering', 1: 'growling', 2: 'hissing', 3: 'meowing', 4: 'purring', 5: 'trilling', 6: 'yelling', 7: 'noise'}
     return emo_dict[pred_most.item()]
 
-def action_inference(image, model_path='model_cat_vgg16bn_statedict.pt'):
+def action_inference(image, model_path='model_cat_mobilenetV2_statedict.pt'):
     if torch.cuda.is_available():
         is_cuda = True
         
-    model_ft = models.vgg16_bn(pretrained=True)
-    num_ftrs = model_ft.classifier[6].out_features
+    model_ft = models.mobilenet_v2(pretrained=True)
+    num_ftrs = model_ft.classifier[1].out_features
     model_ft.fc = nn.Linear(num_ftrs, 7)
-
+    
     if is_cuda:
         model_ft = model_ft.cuda()
     model_ft.load_state_dict(torch.load(model_path))
@@ -164,7 +164,7 @@ def get_video():
     downloading_s3(fileUrl)
     audio_emotion = video_inference()
     action_emotion = extracting_frame()
-    if audio_emotion == action_emotion:
+    if audio_emotion == action_emotion or audio_emotion=='noise':
         emotion = action_emotion
     else:
         print(audio_emotion, action_emotion)
@@ -177,9 +177,9 @@ if not app.debug:
     from logging.handlers import RotatingFileHandler
     file_handler = RotatingFileHandler(
         'dave_server.log', maxBytes=2000, backupCount=10)
-    file_handler.setLevel(logging.WARNING) 
-    app.logger.addHandler(file_handler) 
-    
+    file_handler.setLevel(logging.WARNING)
+    app.logger.addHandler(file_handler)
+
 @app.errorhandler(404)
 def page_not_found(error):
     app.logger.error('page_not_found')
@@ -187,4 +187,3 @@ def page_not_found(error):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port="5000", debug=False)
-
