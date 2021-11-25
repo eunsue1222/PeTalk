@@ -128,6 +128,8 @@ def extracting_frame(video='test_video.mp4'):
 def action_inference(image, model_path='model_cat_mobilenetV2_statedict.pt'):
     if torch.cuda.is_available():
         is_cuda = True
+    else:
+        is_cuda = False
         
     model_ft = models.mobilenet_v2(pretrained=True)
     num_ftrs = model_ft.classifier[1].out_features
@@ -135,7 +137,7 @@ def action_inference(image, model_path='model_cat_mobilenetV2_statedict.pt'):
     
     if is_cuda:
         model_ft = model_ft.cuda()
-    model_ft.load_state_dict(torch.load(model_path))
+    model_ft.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
 
     simple_transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
     inputs = simple_transform(image)  # torch.Size([3, 224, 224])
