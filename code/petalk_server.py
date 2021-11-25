@@ -10,6 +10,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
+import cv2
 import librosa
 import random
 from tqdm import tqdm
@@ -17,9 +18,8 @@ from functools import lru_cache
 from os import walk
 import moviepy.editor as mp
 from urllib import parse
-os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
-
 from flask import render_template
+os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
 
 
 def parsing_json(json_format):
@@ -69,11 +69,11 @@ def setting_default():
     torch.manual_seed(777)
     if device == 'cuda':
         torch.cuda.manual_seed_all(777)
-    model = UrbanSoundRNN(feat_dim=40, hidden_dim=64, num_class=10).to(device)
-    PATH = "UrbanSoundRNN_entiremodel.pt"
-    model = torch.load(PATH, map_location=torch.device('cpu'))
-    print(model.eval())
-    return device, model
+    audio_model = UrbanSoundRNN(feat_dim=40, hidden_dim=64, num_class=10).to(device)
+    audio_path = "model_cat_rnn_entire.pt"
+    audio_model = torch.load(audio_path, map_location=torch.device('cpu'))
+    print(audio_model.eval())
+    return device, audio_model
 
 def getaudio(file_name):
     sound, sample_rate = librosa.load(file_name, sr=16000, mono=True, res_type='kaiser_fast')
@@ -84,12 +84,11 @@ def getaudio(file_name):
     target = 0
     return sound_feature, target
 
-def video_inference(video_name='test_video.mp4'):
+def video_inference(video='test_video.mp4'):
     device, model = setting_default()
-    videoclip = mp.VideoFileClip(video_name)
-    videoclip.audio.write_audiofile("test_audio.wav")
-    file_name = 'test_audio.wav'
-    X, Y = getaudio(file_name)
+    videoclip = mp.VideoFileClip(video)
+    videoclip.audio.write_audiofile("test_audio.wav") 
+    X, Y = getaudio('test_audio.wav')
     with torch.no_grad():
         seq_len, feat_dim = X.size()
         X = X.view(-1, seq_len, feat_dim).to(device)
@@ -98,9 +97,57 @@ def video_inference(video_name='test_video.mp4'):
         print(pred.argmax(1).item())
         wav_file_path = os.path.join(file_name)
         print(wav_file_path)
-    emo_dict = {0: 'chattering', 1: 'growling', 2: 'hissing', 3: 'meowing', 4: 'purring', 5: 'trilling', 6: 'yelling',
-                7: 'noise'}
+    emo_dict = {0: 'chattering', 1: 'growling', 2: 'hissing', 3: 'meowing', 4: 'purring', 5: 'trilling', 6: 'yelling', 7: 'noise'}
     return emo_dict[pred.argmax(1).item()]
+
+def extracting_frame(video='test_video.mp4'):
+    vidcap = cv2.VideoCapture(video)
+    count = 0
+    preds = []
+ 
+    while(vidcap.isOpened()):
+        ret, image = vidcap.read()
+        if not ret:
+            break
+            
+        if(int(vidcap.get(1)) % 30 == 0):
+            PIL_image = Image.fromarray(image)
+            pred = action_inference(PIL_image)
+            preds.append(pred)
+            print('Saved frame number : ' + str(int(vidcap.get(1))))
+            print('frame%d.jpg' % count)
+            count += 1
+    
+    pred_most = max(preds, key=preds.count)
+    vidcap.release()
+    emo_dict = {0: 'chattering', 1: 'growling', 2: 'hissing', 3: 'meowing', 4: 'purring', 5: 'trilling', 6: 'yelling', 7: 'noise'}
+    return emo_dict[pred_most.item()]
+
+def action_inference(image, model_path='model_cat_vgg16bn_statedict.pt'):
+    if torch.cuda.is_available():
+        is_cuda = True
+        
+    model_ft = models.vgg16_bn(pretrained=True)
+    num_ftrs = model_ft.classifier[6].out_features
+    model_ft.fc = nn.Linear(num_ftrs, 7)
+
+    if is_cuda:
+        model_ft = model_ft.cuda()
+    model_ft.load_state_dict(torch.load(model_path))
+
+    simple_transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
+    inputs = simple_transform(image)  # torch.Size([3, 224, 224])
+    inputs = inputs.reshape(-1, 3, 224, 224)  # torch.Size([1, 3, 224, 224])
+
+    if torch.cuda.is_available():
+        inputs = Variable(inputs.cuda())
+    else:
+        inputs = Variable(inputs)
+
+    outputs = model_ft(inputs)
+    _, preds = torch.max(outputs.data, 1)
+    print('preds = ', preds)
+    return preds
 
 
 from flask import Flask, request
@@ -115,7 +162,13 @@ def get_video():
     result = request.get_json()
     fileUrl, videoId = parsing_json(result)
     downloading_s3(fileUrl)
-    emotion = video_inference()
+    audio_emotion = video_inference()
+    action_emotion = extracting_frame()
+    if audio_emotion == action_emotion:
+        emotion = action_emotion
+    else:
+        print(audio_emotion, action_emotion)
+        emotion = audio_emotion
     posting_data(videoId, emotion)
     return 'success'
 
@@ -124,13 +177,14 @@ if not app.debug:
     from logging.handlers import RotatingFileHandler
     file_handler = RotatingFileHandler(
         'dave_server.log', maxBytes=2000, backupCount=10)
-    file_handler.setLevel(logging.WARNING)
-    app.logger.addHandler(file_handler)
-
+    file_handler.setLevel(logging.WARNING) 
+    app.logger.addHandler(file_handler) 
+    
 @app.errorhandler(404)
 def page_not_found(error):
-    app.logger.error('에러 page_not_found에서 일어났습니다.')
+    app.logger.error('page_not_found')
     return render_template('404.html'), 404
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port="8080", debug=False)
+    app.run(host="0.0.0.0", port="5000", debug=False)
+
